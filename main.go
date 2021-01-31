@@ -23,6 +23,7 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"net/url"
 	"text/template"
 )
 
@@ -45,7 +46,21 @@ var resources embed.FS
 //go:embed resources/index.html
 var index []byte
 
-var indexTmpl *template.Template
+var (
+	indexTmpl   *template.Template
+	tmplFuncMap template.FuncMap
+)
+
+func netboxSearchLink(query string) string {
+	u := &url.URL{}
+	u.Scheme = "https"
+	u.Host = "netbox.kamel.network"
+	u.Path = "/search/"
+	v := url.Values{}
+	v.Add("q", query)
+	u.RawQuery = v.Encode()
+	return u.String()
+}
 
 func handleIndex(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("content-type", "text/html; charset=utf-8")
@@ -86,7 +101,10 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	indexTmpl = template.Must(template.New("index").Parse(string(index)))
+	tmplFuncMap = template.FuncMap{
+		"NetboxSearch": netboxSearchLink,
+	}
+	indexTmpl = template.Must(template.New("index").Funcs(tmplFuncMap).Parse(string(index)))
 	rf, _ := fs.Sub(resources, "resources")
 	fs := http.FileServer(http.FS(rf))
 	http.Handle("/r/", http.StripPrefix("/r/", fs))

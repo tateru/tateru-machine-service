@@ -71,11 +71,11 @@ $(document).ready(function(){
       </td>
       <td class="right aligned collapsing">
         {{ $m.SerialNumber }}<br>
-        <a href="#">Netbox</a>
+        <a href="{{ NetboxSearch $m.SerialNumber }}">Netbox</a>
       </td>
       <td class="right aligned collapsing">
         {{ $m.AssetTag }}<br>
-        <a href="#">Netbox</a>
+        <a href="{{ NetboxSearch $m.AssetTag }}">Netbox</a>
       </td>
       <td class="collapsing">
 {{ if eq $m.Type "vcenter" }}
