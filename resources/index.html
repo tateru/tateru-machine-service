@@ -1,0 +1,96 @@
+<!--
+ Tateru Machine Service UI
+ Copyright (C) 2021  Tateru Authors
+
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<html>
+<head>
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.3.1/dist/jquery.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
+<link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/fomantic-ui@2.8.7/dist/semantic.min.css" integrity="sha256-2+dssJtgusl/DZZZ8gF9ayAgRzcewXQsaP86E4Ul+ss=" crossorigin="anonymous">
+<script src="https://cdn.jsdelivr.net/npm/fomantic-ui@2.8.7/dist/semantic.min.js" integrity="sha256-yibQd6vg4YwSTFUcgd+MwPALTUAVCKTjh4jMON4j+Gk=" crossorigin="anonymous"></script>
+<script language='javascript'>
+$(document).ready(function(){
+  $('.ui.accordion').accordion();
+});
+</script>
+<style type="text/css">
+
+.ui.menu .item img.logo {
+  margin-right: 1.5em;
+}
+.main.container {
+  padding-top: 7em;
+}
+.icon img {
+  width: 100%;
+}
+</style>
+</head>
+<body>
+<div class="ui fixed menu">
+  <div class="header item">
+    <img class="logo" src="r/tateru.png">
+    Tateru Machine Service
+  </div>
+</div>
+
+<div class="ui main container">
+<table class="ui celled padded striped table">
+  <thead>
+    <tr><th class="single line">Machine Name</th>
+    <th>Serial Number</th>
+    <th>Asset Tag</th>
+    <th>Manager</th>
+  </tr></thead>
+  <tbody>
+{{ range $m := .Machines }}
+    <tr>
+      <td class="single line">
+        <div class="ui accordion">
+          <div class="title">
+            <h3 class="ui aligned header"><i class="dropdown icon"></i>{{ $m.Name }}</h3>
+          </div>
+          <div class="content">
+            <table>
+              <tr><td>UUID:</td><td>{{ $m.UUID }}</td></tr>
+            </table>
+          </div>
+        </div>
+      </td>
+      <td class="right aligned collapsing">
+        {{ $m.SerialNumber }}<br>
+        <a href="#">Netbox</a>
+      </td>
+      <td class="right aligned collapsing">
+        {{ $m.AssetTag }}<br>
+        <a href="#">Netbox</a>
+      </td>
+      <td class="collapsing">
+{{ if eq $m.Type "vcenter" }}
+        <i class="icon"><img src="r/vcenter.png"></i>
+{{ else if eq $m.Type "redfish" }}
+        <i class="icon"><img src="r/circuit-board.png"></i>
+{{ else }}
+        <i class="question circle outline icon"></i>
+{{ end }}
+        <a href="#">{{ $m.ManagerName }}</a>
+      </td>
+    </tr>
+{{ end }}
+  </tbody>
+</table>
+</div>
+</body>
+</html>
