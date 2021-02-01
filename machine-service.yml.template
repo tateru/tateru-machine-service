@@ -1,5 +1,5 @@
 netbox: https://netbox.corp.local
 managers:
   http://localhost:7707:
-    name: Datcenter1 vCenter
-    type: vcenter
+    name: Tateru QEMU Instance
+    type: qemu

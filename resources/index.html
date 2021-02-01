@@ -70,12 +70,20 @@ $(document).ready(function(){
         </div>
       </td>
       <td class="right aligned collapsing">
+        {{ if $m.SerialNumber }}
         {{ $m.SerialNumber }}<br>
         <a href="{{ NetboxSearch $m.SerialNumber }}">Netbox</a>
+        {{ else }}
+        -
+        {{ end }}
       </td>
       <td class="right aligned collapsing">
+        {{ if $m.AssetTag }}
         {{ $m.AssetTag }}<br>
         <a href="{{ NetboxSearch $m.AssetTag }}">Netbox</a>
+        {{ else }}
+        -
+        {{ end }}
       </td>
       <td class="collapsing">
 {{ if eq $m.Type "vcenter" }}

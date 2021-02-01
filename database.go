@@ -19,8 +19,11 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
+	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"sync"
 	"text/template"
 	"time"
@@ -66,14 +69,46 @@ func (db *tateruDb) Poll() {
 		machs := []Machine{}
 		for maddr, mcfg := range cfg.Managers {
 			log.Printf("Polling %q @ %s", mcfg.Name, maddr)
-			machs = append(machs, Machine{
-				Name:         "test.kamel.network",
-				UUID:         "4de6d578-21ea-4fac-aa79-26ece3425368",
-				SerialNumber: "XXXXXXXXXXXX",
-				AssetTag:     "00431",
-				Type:         mcfg.Type,
-				ManagerName:  mcfg.Name,
-			})
+			u, err := url.Parse(maddr)
+			if err != nil {
+				panic(err)
+			}
+			u.Path += "/v1/machines"
+			resp, err := http.Get(u.String())
+			if err != nil {
+				log.Printf("Poll of %q failed: %v", mcfg.Name, err)
+				continue
+			}
+			if resp.StatusCode != 200 {
+				log.Printf("Poll of %q failed: status code %d", mcfg.Name, resp.StatusCode)
+				continue
+			}
+			defer resp.Body.Close()
+			body, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				log.Printf("Poll read of %q failed: %v", mcfg.Name, err)
+				continue
+			}
+			var mr []struct {
+				UUID         string
+				SerialNumber string
+				AssetTag     string
+				Name         string
+			}
+			if err := json.Unmarshal(body, &mr); err != nil {
+				log.Printf("Poll of %q failed to parse: %v", mcfg.Name, err)
+				continue
+			}
+			for _, m := range mr {
+				machs = append(machs, Machine{
+					Name:         m.Name,
+					SerialNumber: m.SerialNumber,
+					AssetTag:     m.AssetTag,
+					UUID:         m.UUID,
+					ManagerName:  mcfg.Name,
+					Type:         mcfg.Type,
+				})
+			}
 		}
 		db.machinesMutex.Lock()
 		db.machines = machs
