@@ -44,6 +44,7 @@ var index []byte
 var cfg *msConfig
 
 func main() {
+	log.Printf("Tateru Machine Service starting...")
 	indexTmpl := initTemplate("index", index)
 	cfile, err := ioutil.ReadFile("machine-service.yml")
 	if err != nil {
@@ -58,7 +59,16 @@ func main() {
 	rf, _ := fs.Sub(resources, "resources")
 	fs := http.FileServer(http.FS(rf))
 	http.Handle("/r/", http.StripPrefix("/r/", fs))
-	http.HandleFunc("/", db.HandleIndex)
-	// TODO: API endpoints
+	http.HandleFunc("/v1/machines", db.HandleMachinesAPI)
+	http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
+		// The "/" pattern matches everything, so we need to check
+		// that we're at the root here.
+		if req.URL.Path != "/" {
+			log.Printf("Received request to unmapped path: %q", req.URL.Path)
+			http.NotFound(w, req)
+			return
+		}
+		db.HandleIndex(w, req)
+	})
 	log.Fatal(http.ListenAndServe("[::]:7865", nil))
 }

@@ -30,12 +30,13 @@ import (
 )
 
 type Machine struct {
-	Name         string
-	UUID         string
-	SerialNumber string
-	AssetTag     string
-	Type         string
-	ManagerName  string
+	Name         string `json:"name,omitempty"`
+	UUID         string `json:"uuid"`
+	SerialNumber string `json:"serialNumber,omitempty"`
+	AssetTag     string `json:"assetTag,omitempty"`
+	Type         string `json:"type"`
+	ManagerName  string `json:"-"`
+	ManagedBy    string `json:"managedBy"`
 }
 
 type tateruDb struct {
@@ -65,10 +66,10 @@ func (db *tateruDb) HandleIndex(w http.ResponseWriter, r *http.Request) {
 }
 
 func (db *tateruDb) Poll() {
+	log.Printf("Polling of managers started")
 	for {
 		machs := []Machine{}
 		for maddr, mcfg := range cfg.Managers {
-			log.Printf("Polling %q @ %s", mcfg.Name, maddr)
 			u, err := url.Parse(maddr)
 			if err != nil {
 				panic(err)
@@ -107,6 +108,7 @@ func (db *tateruDb) Poll() {
 					UUID:         m.UUID,
 					ManagerName:  mcfg.Name,
 					Type:         mcfg.Type,
+					ManagedBy:    maddr,
 				})
 			}
 		}
@@ -115,4 +117,26 @@ func (db *tateruDb) Poll() {
 		db.machinesMutex.Unlock()
 		time.Sleep(time.Second * 30)
 	}
+}
+
+func (db *tateruDb) HandleMachinesAPI(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("content-type", "application/json; charset=utf-8")
+
+	if r.Method != "GET" {
+		http.Error(w, "Unsupported method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// TODO: Add filter of alias query param
+
+	db.machinesMutex.RLock()
+	b, err := json.MarshalIndent(db.machines, "", " ")
+	if err != nil {
+		http.Error(w, "Failed to render JSON", http.StatusInternalServerError)
+		log.Printf("Failed to marshal machines JSON: %v", err)
+		return
+	}
+	db.machinesMutex.RUnlock()
+	w.Write(b)
+	return
 }
