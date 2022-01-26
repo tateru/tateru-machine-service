@@ -57,12 +57,15 @@ func main() {
 	if err := yaml.Unmarshal([]byte(cfile), &cfg); err != nil {
 		log.Fatalf("yaml.Unmarshal failed: %v", err)
 	}
-	db := &tateruDb{indexTmpl: indexTmpl}
+	db := &tateruDb{indexTmpl: indexTmpl, installRequests: make(map[string]InstallRequest)}
 	go db.Poll()
 	router := mux.NewRouter()
 	rf, _ := fs.Sub(resources, "resources")
 	router.PathPrefix("/r/").Handler(http.StripPrefix("/r/", http.FileServer(http.FS(rf))))
 	router.HandleFunc("/v1/machines", db.HandleMachinesAPI).Methods("GET")
+	router.HandleFunc("/v1/machines/{uuid}", db.HandleFetchMachineAPI).Methods("GET")
+	router.HandleFunc("/v1/machines/{uuid}/boot-installer", db.HandleBootInstallerAPI).Methods("POST")
+	router.HandleFunc("/v1/machines/{uuid}/installer-callback", db.HandleInstallerCallbackAPI).Methods("POST")
 	router.HandleFunc("/", db.HandleIndex).Methods("GET")
 	log.Fatal(http.ListenAndServe("[::]:7865", handlers.LoggingHandler(os.Stdout, router)))
 }
