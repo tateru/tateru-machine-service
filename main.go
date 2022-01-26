@@ -23,7 +23,10 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 
+	"gopkg.in/gorilla/handlers.v1"
+	"gopkg.in/gorilla/mux.v1"
 	"gopkg.in/yaml.v2"
 )
 
@@ -56,19 +59,10 @@ func main() {
 	}
 	db := &tateruDb{indexTmpl: indexTmpl}
 	go db.Poll()
+	router := mux.NewRouter()
 	rf, _ := fs.Sub(resources, "resources")
-	fs := http.FileServer(http.FS(rf))
-	http.Handle("/r/", http.StripPrefix("/r/", fs))
-	http.HandleFunc("/v1/machines", db.HandleMachinesAPI)
-	http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
-		// The "/" pattern matches everything, so we need to check
-		// that we're at the root here.
-		if req.URL.Path != "/" {
-			log.Printf("Received request to unmapped path: %q", req.URL.Path)
-			http.NotFound(w, req)
-			return
-		}
-		db.HandleIndex(w, req)
-	})
-	log.Fatal(http.ListenAndServe("[::]:7865", nil))
+	router.PathPrefix("/r/").Handler(http.StripPrefix("/r/", http.FileServer(http.FS(rf))))
+	router.HandleFunc("/v1/machines", db.HandleMachinesAPI).Methods("GET")
+	router.HandleFunc("/", db.HandleIndex).Methods("GET")
+	log.Fatal(http.ListenAndServe("[::]:7865", handlers.LoggingHandler(os.Stdout, router)))
 }
