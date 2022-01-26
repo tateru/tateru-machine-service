@@ -118,7 +118,13 @@ func (db *tateruDb) HandleIndex(w http.ResponseWriter, r *http.Request) {
 		Machines []Machine
 	}
 	db.machinesMutex.RLock()
-	d.Machines = db.machines
+
+	machs := []Machine{}
+	for _, m := range db.machines {
+		m.getInstallRequest(db)
+		machs = append(machs, m)
+	}
+	d.Machines = machs
 
 	b := &bytes.Buffer{}
 	if err := db.indexTmpl.Execute(b, d); err != nil {
