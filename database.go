@@ -191,21 +191,38 @@ func (db *tateruDb) Poll() {
 func (db *tateruDb) HandleMachinesAPI(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("content-type", "application/json; charset=utf-8")
 
-	if r.Method != "GET" {
-		http.Error(w, "Unsupported method", http.StatusMethodNotAllowed)
-		return
+	db.machinesMutex.RLock()
+	defer db.machinesMutex.RUnlock()
+
+	machines := []Machine{}
+
+	// Filter machines if applicable
+	filterAlias := ""
+	query := r.URL.Query()
+	if query.Has("alias") {
+		// Only use one (the first) alias
+		filterAlias = query.Get("alias")
 	}
 
-	// TODO: Add filter of alias query param
+	for _, machine := range db.machines {
+		if filterAlias != "" && filterAlias != machine.Name {
+			continue
+		}
 
-	db.machinesMutex.RLock()
-	b, err := json.MarshalIndent(db.machines, "", " ")
+		machine.getInstallRequest(db)
+
+		machines = append(machines, machine)
+	}
+
+	b, err := json.MarshalIndent(machines, "", " ")
 	if err != nil {
 		http.Error(w, "Failed to render JSON", http.StatusInternalServerError)
 		log.Printf("Failed to marshal machines JSON: %v", err)
 		return
 	}
-	db.machinesMutex.RUnlock()
+	w.Write(b)
+	return
+}
 
 func (db *tateruDb) HandleFetchMachineAPI(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
