@@ -56,10 +56,7 @@ func (m *Machine) State() string {
 		return "provisioned"
 	}
 
-	if m.installRequest.State == "" {
-		return "unknown"
-	}
-	return m.installRequest.State
+	return m.installRequest.State.Current()
 }
 
 // When calling this function, you should hold a read-lock on the db object
@@ -74,10 +71,45 @@ func (m *Machine) getInstallRequest(db *tateruDB) {
 	}
 }
 
+func NewInstallRequestStateMachine() *StateMachine {
+	states := StateMap{
+		"provisioned": {
+			Events: EventMap{
+				"RECEIVED_BOOT_INSTALLER_REQUEST": Event{
+					NewState: "pending",
+				},
+			},
+		},
+		"pending": {
+			Events: EventMap{
+				"SENT_BOOT_INSTALLER_REQUEST_TO_MANAGER": Event{
+					NewState: "booting",
+				},
+			},
+		},
+		"booting": {
+			Events: EventMap{
+				"RECEIVED_INSTALLER_CALLBACK": Event{
+					NewState: "booted",
+				},
+			},
+		},
+		"booted": {
+			Events: EventMap{
+				"RECEIVED_INSTALLER_EXITING_CALLBACK": Event{
+					NewState: "provisioned",
+				},
+			},
+		},
+	}
+
+	return NewStateMachine("pending", states)
+}
+
 type InstallRequest struct {
 	LastUpdate    time.Time
 	Nonce         string
-	State         string
+	State         *StateMachine
 	SSHPubKey     string
 	InstallerAddr string
 	SSHPorts      SSHPorts
@@ -292,7 +324,7 @@ func (db *tateruDB) HandleBootInstallerAPI(w http.ResponseWriter, r *http.Reques
 
 	installRequest := InstallRequest{
 		LastUpdate: time.Now(),
-		State:      "pending",
+		State:      NewInstallRequestStateMachine(),
 		SSHPubKey:  bir.SSHPubKey,
 		Nonce:      bir.Nonce,
 	}
@@ -330,8 +362,10 @@ func (db *tateruDB) HandleBootInstallerAPI(w http.ResponseWriter, r *http.Reques
 	}
 
 	installRequest.LastUpdate = time.Now()
-	installRequest.State = "booting"
+	installRequest.State.Transition("SENT_BOOT_INSTALLER_REQUEST_TO_MANAGER")
 	db.installRequests[uuid] = installRequest
+
+	installRequest.State.WaitFor("booted")
 
 	return
 }
@@ -397,7 +431,7 @@ func (db *tateruDB) HandleInstallerCallbackAPI(w http.ResponseWriter, r *http.Re
 	}
 
 	installRequest.LastUpdate = time.Now()
-	installRequest.State = "booted"
+	installRequest.State.Transition("RECEIVED_INSTALLER_CALLBACK")
 	db.installRequests[uuid] = installRequest
 
 	w.Header().Add("content-type", "application/json; charset=utf-8")
