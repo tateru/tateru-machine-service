@@ -30,7 +30,7 @@ import (
 	"text/template"
 	"time"
 
-	"gopkg.in/gorilla/mux.v1"
+	"github.com/gorilla/mux"
 )
 
 type SSHPorts struct {

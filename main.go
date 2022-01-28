@@ -25,8 +25,8 @@ import (
 	"net/http"
 	"os"
 
-	"gopkg.in/gorilla/handlers.v1"
-	"gopkg.in/gorilla/mux.v1"
+	"github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
 	"gopkg.in/yaml.v2"
 )
 
