@@ -27,6 +27,7 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	lru "github.com/hashicorp/golang-lru"
 	"gopkg.in/yaml.v2"
 )
 
@@ -57,7 +58,11 @@ func main() {
 	if err := yaml.Unmarshal([]byte(cfile), &cfg); err != nil {
 		log.Fatalf("yaml.Unmarshal failed: %v", err)
 	}
-	db := &tateruDB{indexTmpl: indexTmpl, installRequests: make(map[string]InstallRequest)}
+	db := &tateruDB{indexTmpl: indexTmpl}
+	db.installRequests, err = lru.NewWithEvict(256, db.installRequestEvict)
+	if err != nil {
+		log.Fatalf("installRequest cache init error: %v", err)
+	}
 	go db.Poll()
 	router := mux.NewRouter()
 	rf, _ := fs.Sub(resources, "resources")
