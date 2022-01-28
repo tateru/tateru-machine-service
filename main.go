@@ -57,7 +57,7 @@ func main() {
 	if err := yaml.Unmarshal([]byte(cfile), &cfg); err != nil {
 		log.Fatalf("yaml.Unmarshal failed: %v", err)
 	}
-	db := &tateruDb{indexTmpl: indexTmpl, installRequests: make(map[string]InstallRequest)}
+	db := &tateruDB{indexTmpl: indexTmpl, installRequests: make(map[string]InstallRequest)}
 	go db.Poll()
 	router := mux.NewRouter()
 	rf, _ := fs.Sub(resources, "resources")

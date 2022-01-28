@@ -45,7 +45,7 @@ type Machine struct {
 	Type          string   `json:"type"`
 	ManagerName   string   `json:"-"`
 	ManagedBy     string   `json:"managedBy"`
-	SshPorts      SSHPorts `json:"sshPorts",omitempty"`
+	SSHPorts      SSHPorts `json:"sshPorts",omitempty"`
 	InstallerAddr string   `json:"installerAddress,omitempty"`
 
 	installRequest *InstallRequest
@@ -63,14 +63,14 @@ func (m *Machine) State() string {
 }
 
 // When calling this function, you should hold a read-lock on the db object
-func (m *Machine) getInstallRequest(db *tateruDb) {
+func (m *Machine) getInstallRequest(db *tateruDB) {
 	installRequest, ok := db.installRequests[m.UUID]
 	if ok {
 		m.installRequest = &installRequest
 
 		// TODO: implement a custom JSON encoder instead of manually duplicating attributes
 		m.InstallerAddr = installRequest.InstallerAddr
-		m.SshPorts = installRequest.SshPorts
+		m.SSHPorts = installRequest.SSHPorts
 	}
 }
 
@@ -78,14 +78,14 @@ type InstallRequest struct {
 	LastUpdate    time.Time
 	Nonce         string
 	State         string
-	SshPubKey     string
+	SSHPubKey     string
 	InstallerAddr string
-	SshPorts      SSHPorts
+	SSHPorts      SSHPorts
 }
 
 type BootInstallerRequest struct {
 	Nonce     string `json:"nonce"`
-	SshPubKey string `json:"ssh_pub_key"`
+	SSHPubKey string `json:"ssh_pub_key"`
 }
 
 type ManagerBootInstallerRequest struct {
@@ -97,21 +97,21 @@ type CallbackRequest struct {
 	// Should we abort if they do not match what is set on the Machine (via the manager)?
 	SerialNumber string   `json:"serialNumber,omitempty"`
 	AssetTag     string   `json:"assetTag,omitempty"`
-	SshPorts     SSHPorts `json:"sshPorts,omitempty"`
+	SSHPorts     SSHPorts `json:"sshPorts,omitempty"`
 }
 
 type CallbackResponse struct {
-	SshPubKey string `json:"ssh_pub_key"`
+	SSHPubKey string `json:"ssh_pub_key"`
 }
 
-type tateruDb struct {
+type tateruDB struct {
 	machinesMutex   sync.RWMutex
 	machines        []Machine
 	installRequests map[string]InstallRequest
 	indexTmpl       *template.Template
 }
 
-func (db *tateruDb) HandleIndex(w http.ResponseWriter, r *http.Request) {
+func (db *tateruDB) HandleIndex(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("content-type", "text/html; charset=utf-8")
 
 	var d struct {
@@ -137,7 +137,7 @@ func (db *tateruDb) HandleIndex(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func (db *tateruDb) Poll() {
+func (db *tateruDB) Poll() {
 	log.Printf("Polling of managers started")
 	for {
 		machs := []Machine{}
@@ -194,7 +194,7 @@ func (db *tateruDb) Poll() {
 	}
 }
 
-func (db *tateruDb) HandleMachinesAPI(w http.ResponseWriter, r *http.Request) {
+func (db *tateruDB) HandleMachinesAPI(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("content-type", "application/json; charset=utf-8")
 
 	db.machinesMutex.RLock()
@@ -230,7 +230,7 @@ func (db *tateruDb) HandleMachinesAPI(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func (db *tateruDb) HandleFetchMachineAPI(w http.ResponseWriter, r *http.Request) {
+func (db *tateruDB) HandleFetchMachineAPI(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
 	uuid := vars["uuid"]
@@ -262,7 +262,7 @@ func (db *tateruDb) HandleFetchMachineAPI(w http.ResponseWriter, r *http.Request
 	return
 }
 
-func (db *tateruDb) HandleBootInstallerAPI(w http.ResponseWriter, r *http.Request) {
+func (db *tateruDB) HandleBootInstallerAPI(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
 	uuid := vars["uuid"]
@@ -293,7 +293,7 @@ func (db *tateruDb) HandleBootInstallerAPI(w http.ResponseWriter, r *http.Reques
 	installRequest := InstallRequest{
 		LastUpdate: time.Now(),
 		State:      "pending",
-		SshPubKey:  bir.SshPubKey,
+		SSHPubKey:  bir.SSHPubKey,
 		Nonce:      bir.Nonce,
 	}
 	db.installRequests[uuid] = installRequest
@@ -336,7 +336,7 @@ func (db *tateruDb) HandleBootInstallerAPI(w http.ResponseWriter, r *http.Reques
 	return
 }
 
-func (db *tateruDb) HandleInstallerCallbackAPI(w http.ResponseWriter, r *http.Request) {
+func (db *tateruDB) HandleInstallerCallbackAPI(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
 	uuid := vars["uuid"]
@@ -384,10 +384,10 @@ func (db *tateruDb) HandleInstallerCallbackAPI(w http.ResponseWriter, r *http.Re
 		}
 	}
 	installRequest.InstallerAddr = installerAddr
-	installRequest.SshPorts = cr.SshPorts
+	installRequest.SSHPorts = cr.SSHPorts
 
 	cresp := CallbackResponse{
-		SshPubKey: installRequest.SshPubKey,
+		SSHPubKey: installRequest.SSHPubKey,
 	}
 	b, err := json.MarshalIndent(cresp, "", " ")
 	if err != nil {
