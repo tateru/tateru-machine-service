@@ -23,7 +23,11 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 
+	"github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
+	lru "github.com/hashicorp/golang-lru"
 	"gopkg.in/yaml.v2"
 )
 
@@ -54,21 +58,19 @@ func main() {
 	if err := yaml.Unmarshal([]byte(cfile), &cfg); err != nil {
 		log.Fatalf("yaml.Unmarshal failed: %v", err)
 	}
-	db := &tateruDb{indexTmpl: indexTmpl}
+	db := &tateruDB{indexTmpl: indexTmpl}
+	db.installRequests, err = lru.NewWithEvict(256, db.installRequestEvict)
+	if err != nil {
+		log.Fatalf("installRequest cache init error: %v", err)
+	}
 	go db.Poll()
+	router := mux.NewRouter()
 	rf, _ := fs.Sub(resources, "resources")
-	fs := http.FileServer(http.FS(rf))
-	http.Handle("/r/", http.StripPrefix("/r/", fs))
-	http.HandleFunc("/v1/machines", db.HandleMachinesAPI)
-	http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
-		// The "/" pattern matches everything, so we need to check
-		// that we're at the root here.
-		if req.URL.Path != "/" {
-			log.Printf("Received request to unmapped path: %q", req.URL.Path)
-			http.NotFound(w, req)
-			return
-		}
-		db.HandleIndex(w, req)
-	})
-	log.Fatal(http.ListenAndServe("[::]:7865", nil))
+	router.PathPrefix("/r/").Handler(http.StripPrefix("/r/", http.FileServer(http.FS(rf))))
+	router.HandleFunc("/v1/machines", db.HandleMachinesAPI).Methods("GET")
+	router.HandleFunc("/v1/machines/{uuid}", db.HandleFetchMachineAPI).Methods("GET")
+	router.HandleFunc("/v1/machines/{uuid}/boot-installer", db.HandleBootInstallerAPI).Methods("POST")
+	router.HandleFunc("/v1/machines/{uuid}/installer-callback", db.HandleInstallerCallbackAPI).Methods("POST")
+	router.HandleFunc("/", db.HandleIndex).Methods("GET")
+	log.Fatal(http.ListenAndServe("[::]:7865", handlers.LoggingHandler(os.Stdout, router)))
 }

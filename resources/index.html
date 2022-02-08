@@ -37,6 +37,16 @@ $(document).ready(function(){
 .icon img {
   width: 100%;
 }
+
+tr[data-installer-state=pending] {
+  background-color: #cff4fc;
+}
+tr[data-installer-state=booting] {
+  background-color: #cfe2ff;
+}
+tr[data-installer-state=booted] {
+  background-color: #d1e7dd;
+}
 </style>
 </head>
 <body>
@@ -57,7 +67,7 @@ $(document).ready(function(){
   </tr></thead>
   <tbody>
 {{ range $m := .Machines }}
-    <tr>
+    <tr data-installer-state="{{ $m.State }}">
       <td class="single line">
         <div class="ui accordion">
           <div class="title">
